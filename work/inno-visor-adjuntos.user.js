@@ -9,8 +9,8 @@
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // @run-at       document-idle
 // @grant        none
-// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/inno-visor-adjuntos.user.js
-// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/inno-visor-adjuntos.user.js
+// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/work/inno-visor-adjuntos.user.js
+// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/work/inno-visor-adjuntos.user.js
 // ==/UserScript==
 
 (function () {
