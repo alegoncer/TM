@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         pkmn.gg - Exportar colección a CSV
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.0
+// @version      1.0.0
 // @description  Añade un botón nativo en Collection para exportar la colección del usuario logado a CSV.
 // @match        https://www.pkmn.gg/*
 // @match        https://pkmn.gg/*
