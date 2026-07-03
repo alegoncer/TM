@@ -8,8 +8,8 @@
 // @match        https://pkmn.gg/*
 // @grant        none
 // @noframes
-// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/pkgg-exportador-coleccion.user.js
-// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/pkgg-exportador-coleccion.user.js
+// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/other/pkgg-exportador-coleccion.user.js
+// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/other/pkgg-exportador-coleccion.user.js
 // @run-at       document-start
 // ==/UserScript==
 
