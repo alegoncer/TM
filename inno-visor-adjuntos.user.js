@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InnoApp - Visor y ZIP de adjuntos
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.1.1
+// @version      1.1.2
 // @description  Añade Ver documentos y Descargar ZIP en la línea de DATOS ADJUNTOS.
 // @match        *://repositorio.iformalia.es/*
 // @match        *://*.iformalia.es/*
