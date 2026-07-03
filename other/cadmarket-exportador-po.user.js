@@ -7,8 +7,8 @@
 // @match        https://www.cardmarket.com/*
 // @grant        none
 // @noframes
-// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/cadmarket-exportador-po.user.js
-// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/cadmarket-exportador-po.user.js
+// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/other/cadmarket-exportador-po.user.js
+// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/other/cadmarket-exportador-po.user.js
 // @run-at       document-idle
 // ==/UserScript==
 
