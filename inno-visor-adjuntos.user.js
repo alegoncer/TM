@@ -1,8 +1,9 @@
 // ==UserScript==
-// @name         InnoApp - Visor y ZIP de adjuntos
+// @name         Inno - Visor y ZIP de adjuntos
 // @namespace    https://github.com/alegoncer/TM
 // @version      1.1.2
 // @description  Añade Ver documentos y Descargar ZIP en la línea de DATOS ADJUNTOS.
+// @author       Alejandro
 // @match        *://repositorio.iformalia.es/*
 // @match        *://*.iformalia.es/*
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
