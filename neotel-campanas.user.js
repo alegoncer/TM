@@ -3,7 +3,7 @@
 // @namespace    https://github.com/alegoncer/TM
 // @version      1.5.2
 // @description  Mejora la pantalla de campañas de Neotel: filtros, ordenación, panel derecho oculto y secciones colapsables.
-// @author       Coremsa
+// @author       Alejandro
 // @match        https://pbx.neotel2000.com/pbx/*
 // @run-at       document-idle
 // @grant        none
