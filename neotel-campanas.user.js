@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Neotel PBX - Campañas Coremsa
+// @name         Neotel - Campañas Coremsa
 // @namespace    https://github.com/alegoncer/TM
 // @version      1.5.2
 // @description  Mejora la pantalla de campañas de Neotel: filtros, ordenación, panel derecho oculto y secciones colapsables.
