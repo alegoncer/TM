@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InnoApp - Visor y ZIP de adjuntos
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.0.0
+// @version      1.0.1
 // @description  Añade Ver documentos y Descargar ZIP en la línea de DATOS ADJUNTOS.
 // @match        *://repositorio.iformalia.es/*
 // @match        *://*.iformalia.es/*
@@ -395,18 +395,83 @@
             throw new Error(`No se pudo descargar "${doc.category}".`);
         }
 
-        const blob = await response.blob();
+        let blob = await response.blob();
+
         const headerName = filenameFromContentDisposition(response.headers.get('content-disposition') || '');
         const urlName = filenameFromUrl(action.url || '');
         const sourceName = headerName || urlName || doc.category;
-        const extension = guessExtension(sourceName, blob.type);
+        const contentType = response.headers.get('content-type') || blob.type || '';
+
+        const normalized = await normalizeDownloadedFile(blob, sourceName, contentType);
+
+        return {
+            blob: normalized.blob,
+            sourceName,
+            extension: normalized.extension,
+            mime: normalized.mime
+        };
+    }
+
+    async function normalizeDownloadedFile(blob, sourceName, contentType) {
+        const signature = await readBlobSignature(blob);
+        const originalType = String(contentType || blob.type || '').split(';')[0].toLowerCase();
+        const lowerName = String(sourceName || '').toLowerCase();
+
+        let mime = originalType;
+        let extension = guessExtension(sourceName, mime);
+
+        if (signature.startsWith('%PDF') || lowerName.endsWith('.pdf')) {
+            mime = 'application/pdf';
+            extension = '.pdf';
+        } else if (signature.startsWith('\x89PNG')) {
+            mime = 'image/png';
+            extension = '.png';
+        } else if (signature.startsWith('\xFF\xD8\xFF')) {
+            mime = 'image/jpeg';
+            extension = '.jpg';
+        } else if (signature.startsWith('GIF8')) {
+            mime = 'image/gif';
+            extension = '.gif';
+        } else if (signature.startsWith('PK')) {
+            if (lowerName.endsWith('.docx')) {
+                mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                extension = '.docx';
+            } else if (lowerName.endsWith('.xlsx')) {
+                mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                extension = '.xlsx';
+            } else {
+                mime = mime || 'application/zip';
+                extension = extension || '.zip';
+            }
+        }
+
+        if (!mime || mime === 'application/octet-stream' || mime === 'binary/octet-stream') {
+            mime = mimeFromExtension(extension) || 'application/octet-stream';
+        }
+
+        if (!extension || extension === '.bin') {
+            extension = guessExtension(sourceName, mime);
+        }
+
+        if (blob.type !== mime) {
+            blob = new Blob([blob], { type: mime });
+        }
 
         return {
             blob,
-            sourceName,
-            extension,
-            mime: blob.type || response.headers.get('content-type') || ''
+            mime,
+            extension
         };
+    }
+
+    async function readBlobSignature(blob) {
+        const slice = blob.slice(0, 16);
+        const buffer = await slice.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+
+        return Array.from(bytes)
+            .map(b => String.fromCharCode(b))
+            .join('');
     }
 
     async function fetchPostBackDocument(doc) {
@@ -509,12 +574,16 @@
                 activeUrl = rootWindow.URL.createObjectURL(file.blob);
 
                 const fileName = buildFileName(doc, file, new Set());
-                const isPdf = /pdf/i.test(file.mime) || /\.pdf$/i.test(fileName);
+                const isPdf = file.mime === 'application/pdf' || /\.pdf$/i.test(fileName);
                 const isImage = /^image\//i.test(file.mime) || /\.(jpe?g|png|gif|webp)$/i.test(fileName);
                 const isText = /^text\//i.test(file.mime) || /\.(txt|csv)$/i.test(fileName);
 
                 if (isPdf) {
-                    preview.innerHTML = `<iframe class="tm-doczip-frame" src="${activeUrl}#toolbar=1&navpanes=0"></iframe>`;
+                    preview.innerHTML = `
+                        <object class="tm-doczip-frame" data="${activeUrl}#toolbar=1&navpanes=0" type="application/pdf">
+                            <iframe class="tm-doczip-frame" src="${activeUrl}#toolbar=1&navpanes=0"></iframe>
+                        </object>
+                    `;
                 } else if (isImage) {
                     preview.innerHTML = `<div class="tm-doczip-imgwrap"><img src="${activeUrl}" alt=""></div>`;
                 } else if (isText) {
@@ -526,13 +595,9 @@
                         <div class="tm-doczip-status">
                             <strong>Este tipo de archivo no se puede previsualizar aquí.</strong>
                             <span>${escapeHtml(fileName)}</span>
-                            <button type="button" class="tm-doczip-btn tm-doczip-primary">Descargar archivo</button>
+                            <span>Tipo detectado: ${escapeHtml(file.mime || 'desconocido')}</span>
                         </div>
                     `;
-
-                    preview.querySelector('button').onclick = () => {
-                        downloadBlob(file.blob, fileName);
-                    };
                 }
             } catch (err) {
                 preview.innerHTML = `<div class="tm-doczip-error">${escapeHtml(err.message || String(err))}</div>`;
@@ -657,6 +722,24 @@
 
         const cleanMime = String(mime || '').split(';')[0].toLowerCase();
         return TYPE_EXT[cleanMime] || '.bin';
+    }
+
+    function mimeFromExtension(ext) {
+        ext = String(ext || '').toLowerCase();
+
+        if (ext === '.pdf') return 'application/pdf';
+        if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+        if (ext === '.png') return 'image/png';
+        if (ext === '.gif') return 'image/gif';
+        if (ext === '.webp') return 'image/webp';
+        if (ext === '.txt') return 'text/plain';
+        if (ext === '.doc') return 'application/msword';
+        if (ext === '.docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        if (ext === '.xls') return 'application/vnd.ms-excel';
+        if (ext === '.xlsx') return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        if (ext === '.zip') return 'application/zip';
+
+        return '';
     }
 
     function stripExtension(name) {
