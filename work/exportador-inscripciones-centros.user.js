@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SEPE - Exportar especialidades inscritas
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.0.0
+// @version      1.0.1
 // @description  Descarga las especialidades inscritas de un CIF desde el buscador de centros del SEPE.
 // @author       alegoncer
 // @match        https://sede.sepe.gob.es/*
@@ -39,6 +39,15 @@
   const BASE = 'https://sede.sepe.gob.es/FOET_BuscadorDeCentros_SEDE/flows/buscadorReef';
   const STATE_KEY = 'sepeCoremsaDL';
   const HEADERS = ['CÓDIGO', 'VERSIÓN', 'TIPO', 'DENOMINACIÓN'];
+
+  // Atajos de CIF (se muestran como botones en el panel)
+  const CIFS = [
+    { cif: 'B29751369', nombre: 'LEVEL' },
+    { cif: 'B29681327', nombre: 'DATA' },
+    { cif: 'A92194844', nombre: 'CESUR' },
+    { cif: 'B73531139', nombre: 'DAVEL' },
+    { cif: 'B92982651', nombre: 'COREMSA' },
+  ];
 
   // ------- utilidades de estado -------
   const loadState = () => {
@@ -158,33 +167,62 @@
     if ($id('sepeCoremsaPanel')) { return; }
     const box = document.createElement('div');
     box.id = 'sepeCoremsaPanel';
-    box.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;background:#fff;border:2px solid #005a9c;border-radius:8px;padding:12px 14px;font:13px/1.4 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.25);width:270px;color:#222';
+    box.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;background:#fff;border:2px solid #005a9c;border-radius:8px;padding:12px 14px;font:13px/1.4 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.25);width:280px;color:#222';
+
+    const atajos = CIFS.map((c) =>
+      '<button class="sepeChip" data-cif="' + c.cif + '" title="' + c.cif + '" ' +
+      'style="flex:1 1 auto;padding:5px 6px;background:#eef4fa;color:#005a9c;border:1px solid #b8d2ea;border-radius:4px;cursor:pointer;font-weight:700;font-size:12px">' +
+      c.nombre + '</button>').join('');
+
     box.innerHTML =
       '<div style="font-weight:700;color:#005a9c;margin-bottom:8px">Descarga por CIF · SEPE</div>' +
+      '<label style="display:block;margin-bottom:4px">Atajos:</label>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">' + atajos + '</div>' +
       '<label style="display:block;margin-bottom:4px">NIF/CIF del titular:</label>' +
-      '<input id="sepeCif" type="text" placeholder="Ej. A92194844" style="width:100%;box-sizing:border-box;padding:6px;border:1px solid #aaa;border-radius:4px;text-transform:uppercase;margin-bottom:8px">' +
+      '<input id="sepeCif" type="text" placeholder="Escribe un CIF o usa un atajo" style="width:100%;box-sizing:border-box;padding:6px;border:1px solid #aaa;border-radius:4px;text-transform:uppercase;margin-bottom:8px">' +
       '<button id="sepeStart" style="width:100%;padding:8px;background:#005a9c;color:#fff;border:0;border-radius:4px;cursor:pointer;font-weight:700">Descargar todos los centros</button>' +
       '<div id="sepeMsg" style="margin-top:8px;color:#555;min-height:16px"></div>';
     document.body.appendChild(box);
     ui.box = box;
     ui.msg = $id('sepeMsg');
 
-    $id('sepeStart').addEventListener('click', () => {
+    // Atajos: rellenan el campo (un clic pone el CIF; se descarga con el botón)
+    box.querySelectorAll('.sepeChip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        $id('sepeCif').value = btn.dataset.cif;
+        ui.msg.textContent = btn.textContent + ' (' + btn.dataset.cif + '). Pulsa Descargar.';
+      });
+    });
+
+    const start = () => {
       const cif = $id('sepeCif').value.trim().toUpperCase();
-      if (!cif) { ui.msg.textContent = 'Introduce un CIF.'; return; }
+      if (!cif) { ui.msg.textContent = 'Elige un atajo o escribe un CIF.'; return; }
       saveState({ cif, codes: null, idx: 0, running: true, hechos: [] });
       location.href = BASE; // empezar limpio
-    });
+    };
+    $id('sepeStart').addEventListener('click', start);
+    $id('sepeCif').addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
   };
 
   const renderProgress = (s, extra) => {
     let box = $id('sepeCoremsaPanel');
     if (!box) { renderPanel(); box = $id('sepeCoremsaPanel'); }
-    const total = s.codes ? s.codes.length : '?';
+    const hechos = s.hechos ? s.hechos.length : 0;
+    const total = s.codes ? s.codes.length : null;
+    const pct = total ? Math.round((hechos / total) * 100) : 0;
+    const totalTxt = total != null ? total : '?';
+    const numActual = Math.min(s.idx + 1, total != null ? total : s.idx + 1);
+
     box.innerHTML =
       '<div style="font-weight:700;color:#005a9c;margin-bottom:8px">Descargando… CIF ' + s.cif + '</div>' +
-      '<div>Centro ' + Math.min(s.idx + 1, (s.codes ? s.codes.length : s.idx + 1)) + ' de ' + total + '</div>' +
-      '<div style="margin-top:6px;color:#555">' + (extra || '') + '</div>' +
+      '<div style="display:flex;justify-content:space-between;font-weight:700">' +
+        '<span>Centro ' + numActual + ' de ' + totalTxt + '</span><span>' + pct + '%</span>' +
+      '</div>' +
+      '<div style="height:10px;background:#e6e6e6;border-radius:5px;overflow:hidden;margin:6px 0">' +
+        '<div style="height:100%;width:' + pct + '%;background:#1e7e34;transition:width .3s"></div>' +
+      '</div>' +
+      '<div style="color:#555">' + hechos + '/' + totalTxt + ' descargados</div>' +
+      '<div style="margin-top:4px;color:#888;font-size:12px">' + (extra || '') + '</div>' +
       '<button id="sepeStop" style="margin-top:8px;width:100%;padding:6px;background:#c0392b;color:#fff;border:0;border-radius:4px;cursor:pointer">Detener</button>';
     const stop = $id('sepeStop');
     if (stop) stop.addEventListener('click', () => { clearState(); location.href = BASE; });
