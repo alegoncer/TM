@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SEPE - Exportar especialidades inscritas
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.3.0
+// @version      1.4.0
 // @description  Descarga las especialidades inscritas de un CIF desde el buscador de centros del SEPE.
 // @author       alegoncer
 // @match        https://sede.sepe.gob.es/FOET_BuscadorDeCentros_SEDE/flows/buscadorReef*
@@ -40,7 +40,7 @@
 
   const BASE = 'https://sede.sepe.gob.es/FOET_BuscadorDeCentros_SEDE/flows/buscadorReef';
   const STATE_KEY = 'sepeCoremsaDL';
-  const HEADERS = ['CÓDIGO', 'VERSIÓN', 'TIPO', 'DENOMINACIÓN'];
+  const HEADERS = ['CIF', 'CÓDIGO', 'VERSIÓN', 'TIPO', 'DENOMINACIÓN'];
 
   // Atajos de CIF (se muestran como botones en el panel), en orden y con color propio
   const CIFS = [
@@ -136,8 +136,8 @@
   };
 
   // ------- generación y descarga del .xlsx -------
-  const descargarXlsx = (code, filas) => {
-    const aoa = [HEADERS, ...filas];
+  const descargarXlsx = (code, filas, cif) => {
+    const aoa = [HEADERS, ...filas.map((f) => [cif || '', ...f])];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, String(code).slice(0, 31) || 'Centro');
@@ -313,7 +313,7 @@
       whenTableReady(() => {
         const code = getIdentificador() || (s.codes ? s.codes[s.idx] : 'centro');
         const filas = readEspecialidades();
-        descargarXlsx(code, filas);
+        descargarXlsx(code, filas, s.cif);
         s.hechos = s.hechos || [];
         s.hechos.push(code);
         s.idx += 1;
