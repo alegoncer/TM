@@ -1,15 +1,17 @@
 // ==UserScript==
 // @name         SEPE - Exportar especialidades inscritas
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.0.1
+// @version      1.1.1
 // @description  Descarga las especialidades inscritas de un CIF desde el buscador de centros del SEPE.
 // @author       alegoncer
-// @match        https://sede.sepe.gob.es/*
+// @match        https://sede.sepe.gob.es/FOET_BuscadorDeCentros_SEDE/flows/buscadorReef*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=sepe.gob.es
+// @require      https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js
 // @grant        none
+// @run-at       document-idle
 //
-// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/exportador-inscripciones-centros.js
-// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/exportador-inscripciones-centros.js
+// @updateURL    https://github.com/alegoncer/TM/raw/refs/heads/main/work/exportador-inscripciones-centros.user.js
+// @downloadURL  https://github.com/alegoncer/TM/raw/refs/heads/main/work/exportador-inscripciones-centros.user.js
 // @homepageURL  https://github.com/alegoncer/TM
 // @supportURL   https://github.com/alegoncer/TM/issues
 // ==/UserScript==
