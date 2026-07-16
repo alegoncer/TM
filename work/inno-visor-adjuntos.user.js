@@ -11,6 +11,8 @@
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/work/inno-visor-adjuntos.user.js
 // @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/work/inno-visor-adjuntos.user.js
+// @homepageURL  https://github.com/alegoncer/TM
+// @supportURL   https://github.com/alegoncer/TM/issues
 // ==/UserScript==
 
 (function () {

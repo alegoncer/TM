@@ -10,8 +10,8 @@
 // @grant        none
 // @run-at       document-idle
 //
-// @updateURL    https://github.com/alegoncer/TM/raw/refs/heads/main/work/exportador-inscripciones-centros.user.js
-// @downloadURL  https://github.com/alegoncer/TM/raw/refs/heads/main/work/exportador-inscripciones-centros.user.js
+// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/work/exportador-inscripciones-centros.user.js
+// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/work/exportador-inscripciones-centros.user.js
 // @homepageURL  https://github.com/alegoncer/TM
 // @supportURL   https://github.com/alegoncer/TM/issues
 // ==/UserScript==

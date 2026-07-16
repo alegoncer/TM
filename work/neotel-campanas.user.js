@@ -7,8 +7,9 @@
 // @match        https://pbx.neotel2000.com/pbx/*
 // @run-at       document-idle
 // @grant        none
-// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/neotel-campanas.user.js
-// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/neotel-campanas.user.js
+// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/work/neotel-campanas.user.js
+// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/work/neotel-campanas.user.js
+// @homepageURL  https://github.com/alegoncer/TM
 // @supportURL   https://github.com/alegoncer/TM/issues
 // ==/UserScript==
 
