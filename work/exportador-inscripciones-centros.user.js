@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SEPE - Exportar especialidades inscritas
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.1.1
+// @version      1.2.0
 // @description  Descarga las especialidades inscritas de un CIF desde el buscador de centros del SEPE.
 // @author       alegoncer
 // @match        https://sede.sepe.gob.es/FOET_BuscadorDeCentros_SEDE/flows/buscadorReef*
@@ -163,13 +163,52 @@
     document.body.appendChild(a); a.click(); a.remove();
   };
 
+  // ------- posición del panel (esquina elegible, persistente) -------
+  const POS_KEY = 'sepeCoremsaPos';
+  const CORNERS = ['tl', 'tr', 'br', 'bl']; // orden del ciclo: ↖ → ↗ → ↘ → ↙
+  const CORNER_ICON = { tl: '↖', tr: '↗', br: '↘', bl: '↙' };
+  const MARGIN = '12px';
+
+  const loadPos = () => {
+    const p = localStorage.getItem(POS_KEY);
+    return CORNERS.includes(p) ? p : 'tr'; // por defecto arriba a la derecha
+  };
+  const savePos = (p) => { try { localStorage.setItem(POS_KEY, p); } catch (e) {} };
+
+  const applyPos = (box, pos) => {
+    box.style.top = box.style.bottom = box.style.left = box.style.right = 'auto';
+    box.style[pos[0] === 't' ? 'top' : 'bottom'] = MARGIN;
+    box.style[pos[1] === 'l' ? 'left' : 'right'] = MARGIN;
+  };
+
+  // Botón que cicla entre esquinas; se re-crea tras cada innerHTML porque el panel se
+  // reconstruye en cada paso del flujo.
+  const ensurePosBtn = (box) => {
+    if (box.querySelector('.sepePosBtn')) { return; }
+    const b = document.createElement('button');
+    b.className = 'sepePosBtn';
+    b.type = 'button';
+    b.title = 'Mover el panel a otra esquina';
+    b.textContent = CORNER_ICON[loadPos()];
+    b.style.cssText = 'position:absolute;top:6px;right:6px;width:22px;height:22px;line-height:20px;padding:0;text-align:center;background:#eef4fa;color:#005a9c;border:1px solid #b8d2ea;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700;z-index:1';
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const next = CORNERS[(CORNERS.indexOf(loadPos()) + 1) % CORNERS.length];
+      savePos(next);
+      applyPos(box, next);
+      b.textContent = CORNER_ICON[next];
+    });
+    box.appendChild(b);
+  };
+
   // ------- interfaz flotante -------
   const ui = { box: null, msg: null };
   const renderPanel = () => {
     if ($id('sepeCoremsaPanel')) { return; }
     const box = document.createElement('div');
     box.id = 'sepeCoremsaPanel';
-    box.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;background:#fff;border:2px solid #005a9c;border-radius:8px;padding:12px 14px;font:13px/1.4 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.25);width:280px;color:#222';
+    box.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:2px solid #005a9c;border-radius:8px;padding:12px 14px;font:13px/1.4 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.25);width:280px;color:#222';
+    applyPos(box, loadPos());
 
     const atajos = CIFS.map((c) =>
       '<button class="sepeChip" data-cif="' + c.cif + '" title="' + c.cif + '" ' +
@@ -204,6 +243,7 @@
     };
     $id('sepeStart').addEventListener('click', start);
     $id('sepeCif').addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
+    ensurePosBtn(box);
   };
 
   const renderProgress = (s, extra) => {
@@ -216,7 +256,7 @@
     const numActual = Math.min(s.idx + 1, total != null ? total : s.idx + 1);
 
     box.innerHTML =
-      '<div style="font-weight:700;color:#005a9c;margin-bottom:8px">Descargando… CIF ' + s.cif + '</div>' +
+      '<div style="font-weight:700;color:#005a9c;margin-bottom:8px;padding-right:26px">Descargando… CIF ' + s.cif + '</div>' +
       '<div style="display:flex;justify-content:space-between;font-weight:700">' +
         '<span>Centro ' + numActual + ' de ' + totalTxt + '</span><span>' + pct + '%</span>' +
       '</div>' +
@@ -228,6 +268,7 @@
       '<button id="sepeStop" style="margin-top:8px;width:100%;padding:6px;background:#c0392b;color:#fff;border:0;border-radius:4px;cursor:pointer">Detener</button>';
     const stop = $id('sepeStop');
     if (stop) stop.addEventListener('click', () => { clearState(); location.href = BASE; });
+    ensurePosBtn(box);
   };
 
   const finish = (s) => {
@@ -240,6 +281,7 @@
       '<button id="sepeReset" style="margin-top:8px;width:100%;padding:6px;background:#005a9c;color:#fff;border:0;border-radius:4px;cursor:pointer">Nueva búsqueda</button>';
     const r = $id('sepeReset');
     if (r) r.addEventListener('click', () => location.href = BASE);
+    ensurePosBtn(box);
   };
 
   // Espera a que el DataTable de la ficha esté inicializado antes de leer
