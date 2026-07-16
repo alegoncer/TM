@@ -10,6 +10,8 @@
 // @noframes
 // @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/other/pkgg-exportador-coleccion.user.js
 // @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/other/pkgg-exportador-coleccion.user.js
+// @homepageURL  https://github.com/alegoncer/TM
+// @supportURL   https://github.com/alegoncer/TM/issues
 // @run-at       document-start
 // ==/UserScript==
 
