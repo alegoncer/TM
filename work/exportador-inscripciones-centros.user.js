@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SEPE - Exportar especialidades inscritas
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.2.0
+// @version      1.3.0
 // @description  Descarga las especialidades inscritas de un CIF desde el buscador de centros del SEPE.
 // @author       alegoncer
 // @match        https://sede.sepe.gob.es/FOET_BuscadorDeCentros_SEDE/flows/buscadorReef*
@@ -42,13 +42,13 @@
   const STATE_KEY = 'sepeCoremsaDL';
   const HEADERS = ['CÓDIGO', 'VERSIÓN', 'TIPO', 'DENOMINACIÓN'];
 
-  // Atajos de CIF (se muestran como botones en el panel)
+  // Atajos de CIF (se muestran como botones en el panel), en orden y con color propio
   const CIFS = [
-    { cif: 'B29751369', nombre: 'LEVEL' },
-    { cif: 'B29681327', nombre: 'DATA' },
-    { cif: 'A92194844', nombre: 'CESUR' },
-    { cif: 'B73531139', nombre: 'DAVEL' },
-    { cif: 'B92982651', nombre: 'COREMSA' },
+    { cif: 'A92194844', nombre: 'CESUR',   color: '#8FD3DE' }, // cian
+    { cif: 'B29681327', nombre: 'DATA',    color: '#F9C79A' }, // melocotón
+    { cif: 'B29751369', nombre: 'LEVEL',   color: '#F5F36A' }, // amarillo
+    { cif: 'B73531139', nombre: 'DAVEL',   color: '#85EFAA' }, // verde menta
+    { cif: 'B92982651', nombre: 'COREMSA', color: '#C7BFF4' }, // lavanda
   ];
 
   // ------- utilidades de estado -------
@@ -165,8 +165,8 @@
 
   // ------- posición del panel (esquina elegible, persistente) -------
   const POS_KEY = 'sepeCoremsaPos';
-  const CORNERS = ['tl', 'tr', 'br', 'bl']; // orden del ciclo: ↖ → ↗ → ↘ → ↙
-  const CORNER_ICON = { tl: '↖', tr: '↗', br: '↘', bl: '↙' };
+  const CORNERS = ['tl', 'tr', 'bl', 'br']; // esquinas válidas
+  const CORNER_NAME = { tl: 'arriba-izquierda', tr: 'arriba-derecha', bl: 'abajo-izquierda', br: 'abajo-derecha' };
   const MARGIN = '12px';
 
   const loadPos = () => {
@@ -181,24 +181,33 @@
     box.style[pos[1] === 'l' ? 'left' : 'right'] = MARGIN;
   };
 
-  // Botón que cicla entre esquinas; se re-crea tras cada innerHTML porque el panel se
-  // reconstruye en cada paso del flujo.
-  const ensurePosBtn = (box) => {
-    if (box.querySelector('.sepePosBtn')) { return; }
-    const b = document.createElement('button');
-    b.className = 'sepePosBtn';
-    b.type = 'button';
-    b.title = 'Mover el panel a otra esquina';
-    b.textContent = CORNER_ICON[loadPos()];
-    b.style.cssText = 'position:absolute;top:6px;right:6px;width:22px;height:22px;line-height:20px;padding:0;text-align:center;background:#eef4fa;color:#005a9c;border:1px solid #b8d2ea;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700;z-index:1';
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const next = CORNERS[(CORNERS.indexOf(loadPos()) + 1) % CORNERS.length];
-      savePos(next);
-      applyPos(box, next);
-      b.textContent = CORNER_ICON[next];
+  // Rejilla 2×2 de 4 botones: cada uno es una esquina y coloca ahí el panel.
+  // El botón de la esquina activa va resaltado. Se re-crea tras cada innerHTML
+  // porque el panel se reconstruye en cada paso del flujo.
+  const ensurePosCtrl = (box) => {
+    if (box.querySelector('.sepePosCtrl')) { return; }
+    const wrap = document.createElement('div');
+    wrap.className = 'sepePosCtrl';
+    wrap.style.cssText = 'position:absolute;top:6px;right:6px;display:grid;grid-template-columns:repeat(2,14px);grid-template-rows:repeat(2,14px);gap:2px;z-index:1';
+    // El orden tl, tr, bl, br dibuja la rejilla igual que las esquinas de la pantalla.
+    ['tl', 'tr', 'bl', 'br'].forEach((corner) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sepePosDot';
+      b.dataset.corner = corner;
+      b.title = 'Mover el panel: ' + CORNER_NAME[corner];
+      b.style.cssText = 'width:14px;height:14px;padding:0;border-radius:3px;cursor:pointer;border:1px solid #b8d2ea;background:' + (corner === loadPos() ? '#005a9c' : '#eef4fa');
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        savePos(corner);
+        applyPos(box, corner);
+        wrap.querySelectorAll('.sepePosDot').forEach((x) => {
+          x.style.background = x.dataset.corner === corner ? '#005a9c' : '#eef4fa';
+        });
+      });
+      wrap.appendChild(b);
     });
-    box.appendChild(b);
+    box.appendChild(wrap);
   };
 
   // ------- interfaz flotante -------
@@ -212,11 +221,11 @@
 
     const atajos = CIFS.map((c) =>
       '<button class="sepeChip" data-cif="' + c.cif + '" title="' + c.cif + '" ' +
-      'style="flex:1 1 auto;padding:5px 6px;background:#eef4fa;color:#005a9c;border:1px solid #b8d2ea;border-radius:4px;cursor:pointer;font-weight:700;font-size:12px">' +
+      'style="flex:1 1 auto;padding:5px 6px;background:' + c.color + ';color:#1a1a1a;border:1px solid rgba(0,0,0,.18);border-radius:4px;cursor:pointer;font-weight:700;font-size:12px">' +
       c.nombre + '</button>').join('');
 
     box.innerHTML =
-      '<div style="font-weight:700;color:#005a9c;margin-bottom:8px">Descarga por CIF · SEPE</div>' +
+      '<div style="font-weight:700;color:#005a9c;margin-bottom:8px;padding-right:38px">Descarga por CIF · SEPE</div>' +
       '<label style="display:block;margin-bottom:4px">Atajos:</label>' +
       '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">' + atajos + '</div>' +
       '<label style="display:block;margin-bottom:4px">NIF/CIF del titular:</label>' +
@@ -243,7 +252,7 @@
     };
     $id('sepeStart').addEventListener('click', start);
     $id('sepeCif').addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
-    ensurePosBtn(box);
+    ensurePosCtrl(box);
   };
 
   const renderProgress = (s, extra) => {
@@ -256,7 +265,7 @@
     const numActual = Math.min(s.idx + 1, total != null ? total : s.idx + 1);
 
     box.innerHTML =
-      '<div style="font-weight:700;color:#005a9c;margin-bottom:8px;padding-right:26px">Descargando… CIF ' + s.cif + '</div>' +
+      '<div style="font-weight:700;color:#005a9c;margin-bottom:8px;padding-right:38px">Descargando… CIF ' + s.cif + '</div>' +
       '<div style="display:flex;justify-content:space-between;font-weight:700">' +
         '<span>Centro ' + numActual + ' de ' + totalTxt + '</span><span>' + pct + '%</span>' +
       '</div>' +
@@ -268,7 +277,7 @@
       '<button id="sepeStop" style="margin-top:8px;width:100%;padding:6px;background:#c0392b;color:#fff;border:0;border-radius:4px;cursor:pointer">Detener</button>';
     const stop = $id('sepeStop');
     if (stop) stop.addEventListener('click', () => { clearState(); location.href = BASE; });
-    ensurePosBtn(box);
+    ensurePosCtrl(box);
   };
 
   const finish = (s) => {
@@ -276,12 +285,12 @@
     let box = $id('sepeCoremsaPanel');
     if (!box) { renderPanel(); box = $id('sepeCoremsaPanel'); }
     box.innerHTML =
-      '<div style="font-weight:700;color:#1e7e34;margin-bottom:8px">✔ Descarga completada</div>' +
+      '<div style="font-weight:700;color:#1e7e34;margin-bottom:8px;padding-right:38px">✔ Descarga completada</div>' +
       '<div>' + (s.hechos ? s.hechos.length : 0) + ' centros del CIF ' + s.cif + '.</div>' +
       '<button id="sepeReset" style="margin-top:8px;width:100%;padding:6px;background:#005a9c;color:#fff;border:0;border-radius:4px;cursor:pointer">Nueva búsqueda</button>';
     const r = $id('sepeReset');
     if (r) r.addEventListener('click', () => location.href = BASE);
-    ensurePosBtn(box);
+    ensurePosCtrl(box);
   };
 
   // Espera a que el DataTable de la ficha esté inicializado antes de leer
