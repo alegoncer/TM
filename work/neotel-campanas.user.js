@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Neotel PBX - Campañas Coremsa
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.5.3
-// @description  Mejora la pantalla de campañas de Neotel: filtros, ordenación, panel derecho oculto, contraste de menú lateral y secciones colapsables.
+// @version      1.5.4
+// @description  Mejora la pantalla de campañas de Neotel: filtros, ordenación, panel derecho oculto, menú lateral de alto contraste y secciones colapsables.
 // @author       Alejandro
 // @match        https://pbx.neotel2000.com/pbx/*
 // @run-at       document-idle
@@ -115,9 +115,7 @@
         right: 0 !important;
       }
 
-      body.tm-neotel-campaigns-enhanced .navbar-toggler-icon-widget,
-      body.tm-neotel-campaigns-enhanced button:has(.navbar-toggler-icon-widget),
-      body.tm-neotel-campaigns-enhanced a:has(.navbar-toggler-icon-widget) {
+      body.tm-neotel-campaigns-enhanced .navbar-toggler-icon-widget {
         display: none !important;
       }
 
@@ -376,10 +374,6 @@
         content: "▸";
       }
 
-      #launcher_campaigns_view_campaign_details_campaign_selected .tm-detail-section-row {
-        transition: background .12s ease;
-      }
-
       #launcher_campaigns_view_campaign_details_campaign_selected .tm-detail-section-row:hover {
         background: #f8f9ff;
       }
@@ -439,98 +433,181 @@
     const style = document.createElement('style');
     style.id = 'tm-neotel-sidebar-contrast-style';
     style.textContent = `
-      /* Contraste mejorado para barra lateral izquierda en todo Neotel */
+      /*
+        Rediseño de alto contraste de la barra lateral izquierda.
+        - Padres: fondo azul-negro.
+        - Hijos: fondo claro.
+        - Activo: azul fuerte + marcador amarillo.
+      */
+
       .sidebar {
-        background: #1f2937 !important;
-        border-right: 1px solid #111827 !important;
+        background: #050038 !important;
+        border-right: 3px solid #FFD02F !important;
+        box-shadow: 4px 0 18px rgba(5, 0, 56, .28) !important;
       }
 
       .sidebar .sidebar-nav {
-        background: #1f2937 !important;
+        background: #050038 !important;
+        padding: 10px 8px 56px 8px !important;
       }
 
       .sidebar .nav {
         background: transparent !important;
+        gap: 4px !important;
+      }
+
+      .sidebar .nav-item {
+        margin: 3px 0 !important;
       }
 
       .sidebar .nav-link,
       .sidebar .nav-dropdown-toggle {
-        color: #f9fafb !important;
-        font-weight: 650 !important;
+        min-height: 38px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 9px !important;
+        padding: 9px 12px !important;
+        border-radius: 9px !important;
+        border: 1px solid rgba(255,255,255,.10) !important;
+        background: #111827 !important;
+        color: #ffffff !important;
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        letter-spacing: .01em !important;
+        opacity: 1 !important;
       }
 
       .sidebar .nav-link i,
       .sidebar .nav-dropdown-toggle i,
       .sidebar .nav-link svg,
       .sidebar .nav-dropdown-toggle svg {
-        color: #f9fafb !important;
-        fill: #f9fafb !important;
+        min-width: 17px !important;
+        color: #FFD02F !important;
+        fill: #FFD02F !important;
         opacity: 1 !important;
       }
 
       .sidebar .nav-link:hover,
       .sidebar .nav-dropdown-toggle:hover {
-        background: #374151 !important;
+        background: #3F53D9 !important;
+        border-color: #8ea0ff !important;
         color: #ffffff !important;
+        box-shadow: inset 4px 0 0 #FFD02F !important;
+      }
+
+      .sidebar .nav-link:hover i,
+      .sidebar .nav-dropdown-toggle:hover i,
+      .sidebar .nav-link:hover svg,
+      .sidebar .nav-dropdown-toggle:hover svg {
+        color: #ffffff !important;
+        fill: #ffffff !important;
       }
 
       .sidebar .nav-dropdown.open > .nav-link,
       .sidebar .nav-dropdown.open > .nav-dropdown-toggle {
-        background: #111827 !important;
-        color: #ffffff !important;
-        font-weight: 800 !important;
-        box-shadow: inset 4px 0 0 #FFD02F !important;
+        background: #FFD02F !important;
+        border-color: #FFD02F !important;
+        color: #050038 !important;
+        font-weight: 900 !important;
+        box-shadow: none !important;
+      }
+
+      .sidebar .nav-dropdown.open > .nav-link i,
+      .sidebar .nav-dropdown.open > .nav-dropdown-toggle i,
+      .sidebar .nav-dropdown.open > .nav-link svg,
+      .sidebar .nav-dropdown.open > .nav-dropdown-toggle svg {
+        color: #050038 !important;
+        fill: #050038 !important;
       }
 
       .sidebar .nav-dropdown-items {
-        background: #111827 !important;
-        border-left: 1px solid #374151 !important;
+        margin: 5px 0 8px 12px !important;
+        padding: 7px 6px 7px 10px !important;
+        background: #f9fafb !important;
+        border-left: 5px solid #FFD02F !important;
+        border-radius: 0 10px 10px 0 !important;
+        box-shadow: inset 0 0 0 1px #d1d5db, 0 4px 12px rgba(0,0,0,.14) !important;
+      }
+
+      .sidebar .nav-dropdown-items .nav-item {
+        margin: 3px 0 !important;
       }
 
       .sidebar .nav-dropdown-items .nav-link {
-        color: #e5e7eb !important;
-        padding-left: 28px !important;
-        font-weight: 600 !important;
+        min-height: 32px !important;
+        padding: 7px 9px !important;
+        background: #ffffff !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 7px !important;
+        color: #111827 !important;
+        font-weight: 800 !important;
+        box-shadow: none !important;
+      }
+
+      .sidebar .nav-dropdown-items .nav-link i,
+      .sidebar .nav-dropdown-items .nav-link svg {
+        color: #3F53D9 !important;
+        fill: #3F53D9 !important;
       }
 
       .sidebar .nav-dropdown-items .nav-link:hover {
-        background: #2f3a4b !important;
-        color: #ffffff !important;
+        background: #e0e7ff !important;
+        border-color: #3F53D9 !important;
+        color: #050038 !important;
+        box-shadow: inset 4px 0 0 #3F53D9 !important;
       }
 
       .sidebar .nav-link.active,
       .sidebar .nav-link.menuitem.active,
       .sidebar .nav-dropdown-items .nav-link.active {
         background: #3F53D9 !important;
+        border-color: #3F53D9 !important;
         color: #ffffff !important;
-        font-weight: 850 !important;
-        box-shadow: inset 4px 0 0 #FFD02F !important;
+        font-weight: 950 !important;
+        box-shadow: inset 5px 0 0 #FFD02F, 0 4px 12px rgba(63,83,217,.35) !important;
       }
 
       .sidebar .nav-link.active i,
       .sidebar .nav-link.menuitem.active i,
       .sidebar .nav-link.active svg,
-      .sidebar .nav-link.menuitem.active svg {
+      .sidebar .nav-link.menuitem.active svg,
+      .sidebar .nav-dropdown-items .nav-link.active i,
+      .sidebar .nav-dropdown-items .nav-link.active svg {
         color: #ffffff !important;
         fill: #ffffff !important;
       }
 
       .sidebar .sidebar-minimizer,
       .sidebar .sidebar-minimizer-button {
-        background: #111827 !important;
-        color: #ffffff !important;
-        border-top: 1px solid #374151 !important;
+        background: #FFD02F !important;
+        color: #050038 !important;
+        border-top: 2px solid #ffffff !important;
       }
 
       .sidebar .sidebar-minimizer:hover,
       .sidebar .sidebar-minimizer-button:hover {
-        background: #3F53D9 !important;
+        background: #ffffff !important;
+        color: #050038 !important;
       }
 
       .sidebar .sidebar-minimizer svg,
       .sidebar .sidebar-minimizer-button svg {
-        color: #ffffff !important;
-        fill: #ffffff !important;
+        color: #050038 !important;
+        fill: #050038 !important;
+      }
+
+      body.sidebar-minimized .sidebar .nav-link,
+      body.sidebar-minimized .sidebar .nav-dropdown-toggle {
+        justify-content: center !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+      }
+
+      body.sidebar-minimized .sidebar .nav-link i,
+      body.sidebar-minimized .sidebar .nav-dropdown-toggle i,
+      body.sidebar-minimized .sidebar .nav-link svg,
+      body.sidebar-minimized .sidebar .nav-dropdown-toggle svg {
+        margin: 0 !important;
       }
     `;
 
@@ -581,6 +658,12 @@
         el.style.right = '-9999px';
         el.style.pointerEvents = 'none';
       });
+    });
+
+    $$('.navbar-toggler-icon-widget').forEach(icon => {
+      icon.style.display = 'none';
+      const parentButton = icon.closest('button, a');
+      if (parentButton) parentButton.style.display = 'none';
     });
 
     setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
