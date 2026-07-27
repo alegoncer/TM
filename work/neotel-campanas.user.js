@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Neotel PBX - Campañas Coremsa
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.5.4
-// @description  Mejora la pantalla de campañas de Neotel: filtros, ordenación, panel derecho oculto, menú lateral de alto contraste y secciones colapsables.
+// @version      1.5.5
+// @description  Mejora la pantalla de campañas de Neotel: filtros, ordenación, panel derecho oculto, menú lateral compacto de alto contraste y secciones colapsables.
 // @author       Alejandro
 // @match        https://pbx.neotel2000.com/pbx/*
 // @run-at       document-idle
@@ -434,82 +434,129 @@
     style.id = 'tm-neotel-sidebar-contrast-style';
     style.textContent = `
       /*
-        Rediseño de alto contraste de la barra lateral izquierda.
-        - Padres: fondo azul-negro.
-        - Hijos: fondo claro.
-        - Activo: azul fuerte + marcador amarillo.
+        Rediseño compacto de la barra lateral izquierda.
+        Paleta basada en la captura:
+        - Fondo principal: azul noche.
+        - Tarjetas: negro azulado.
+        - Acentos: naranja y amarillo.
+        - Activo: azul eléctrico.
       */
 
       .sidebar {
         background: #050038 !important;
-        border-right: 3px solid #FFD02F !important;
-        box-shadow: 4px 0 18px rgba(5, 0, 56, .28) !important;
+        border-right: 2px solid #ff751c !important;
+        box-shadow: 3px 0 12px rgba(5, 0, 56, .35) !important;
+        overflow-x: hidden !important;
       }
 
       .sidebar .sidebar-nav {
         background: #050038 !important;
-        padding: 10px 8px 56px 8px !important;
+        padding: 6px 4px 42px 4px !important;
+        overflow-x: hidden !important;
       }
 
       .sidebar .nav {
+        display: block !important;
         background: transparent !important;
-        gap: 4px !important;
+        padding: 0 !important;
+        margin: 0 !important;
       }
 
       .sidebar .nav-item {
-        margin: 3px 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
 
       .sidebar .nav-link,
       .sidebar .nav-dropdown-toggle {
-        min-height: 38px !important;
+        min-height: 28px !important;
+        height: 28px !important;
         display: flex !important;
         align-items: center !important;
-        gap: 9px !important;
-        padding: 9px 12px !important;
-        border-radius: 9px !important;
-        border: 1px solid rgba(255,255,255,.10) !important;
-        background: #111827 !important;
+        gap: 7px !important;
+        padding: 0 8px !important;
+        margin: 2px 2px !important;
+        border-radius: 5px !important;
+        border: 1px solid rgba(255, 117, 28, .22) !important;
+        border-left: 3px solid transparent !important;
+        background: #101827 !important;
         color: #ffffff !important;
-        font-size: 13px !important;
+        font-size: 11.5px !important;
         font-weight: 800 !important;
-        letter-spacing: .01em !important;
+        line-height: 1 !important;
+        letter-spacing: 0 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
         opacity: 1 !important;
+        box-shadow: none !important;
       }
 
       .sidebar .nav-link i,
       .sidebar .nav-dropdown-toggle i,
       .sidebar .nav-link svg,
       .sidebar .nav-dropdown-toggle svg {
-        min-width: 17px !important;
-        color: #FFD02F !important;
-        fill: #FFD02F !important;
+        flex: 0 0 14px !important;
+        width: 14px !important;
+        min-width: 14px !important;
+        max-width: 14px !important;
+        height: 14px !important;
+        margin: 0 !important;
+        color: #ffd02f !important;
+        fill: #ffd02f !important;
+        font-size: 13px !important;
+        text-align: center !important;
         opacity: 1 !important;
       }
 
       .sidebar .nav-link:hover,
       .sidebar .nav-dropdown-toggle:hover {
-        background: #3F53D9 !important;
-        border-color: #8ea0ff !important;
+        background: #1f2a44 !important;
         color: #ffffff !important;
-        box-shadow: inset 4px 0 0 #FFD02F !important;
+        border-color: #ff751c !important;
+        border-left-color: #ffd02f !important;
       }
 
       .sidebar .nav-link:hover i,
       .sidebar .nav-dropdown-toggle:hover i,
       .sidebar .nav-link:hover svg,
       .sidebar .nav-dropdown-toggle:hover svg {
-        color: #ffffff !important;
-        fill: #ffffff !important;
+        color: #ff751c !important;
+        fill: #ff751c !important;
       }
 
+      /* Grupos cerrados: ocultar hijos completamente */
+      .sidebar .nav-dropdown:not(.open) > .nav-dropdown-items,
+      .sidebar .nav-dropdown:not(.open) > ul.nav-dropdown-items {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        pointer-events: none !important;
+      }
+
+      .sidebar .nav-dropdown:not(.open) > .nav-dropdown-items *,
+      .sidebar .nav-dropdown:not(.open) > ul.nav-dropdown-items * {
+        display: none !important;
+        visibility: hidden !important;
+      }
+
+      /* Grupo abierto */
       .sidebar .nav-dropdown.open > .nav-link,
       .sidebar .nav-dropdown.open > .nav-dropdown-toggle {
-        background: #FFD02F !important;
-        border-color: #FFD02F !important;
+        background: #ff751c !important;
+        border-color: #ff751c !important;
+        border-left-color: #ffd02f !important;
         color: #050038 !important;
         font-weight: 900 !important;
-        box-shadow: none !important;
       }
 
       .sidebar .nav-dropdown.open > .nav-link i,
@@ -520,51 +567,81 @@
         fill: #050038 !important;
       }
 
-      .sidebar .nav-dropdown-items {
-        margin: 5px 0 8px 12px !important;
-        padding: 7px 6px 7px 10px !important;
-        background: #f9fafb !important;
-        border-left: 5px solid #FFD02F !important;
-        border-radius: 0 10px 10px 0 !important;
-        box-shadow: inset 0 0 0 1px #d1d5db, 0 4px 12px rgba(0,0,0,.14) !important;
+      /* Hijos de grupos abiertos: compactos, sin tarjetas grandes */
+      .sidebar .nav-dropdown.open > .nav-dropdown-items,
+      .sidebar .nav-dropdown.open > ul.nav-dropdown-items {
+        display: block !important;
+        visibility: visible !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        opacity: 1 !important;
+        margin: 1px 2px 4px 9px !important;
+        padding: 2px 0 2px 5px !important;
+        border-left: 2px solid #ffd02f !important;
+        background: #080033 !important;
+        border-radius: 0 0 4px 4px !important;
+        box-shadow: none !important;
+        pointer-events: auto !important;
       }
 
       .sidebar .nav-dropdown-items .nav-item {
-        margin: 3px 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
 
       .sidebar .nav-dropdown-items .nav-link {
-        min-height: 32px !important;
-        padding: 7px 9px !important;
-        background: #ffffff !important;
-        border: 1px solid #d1d5db !important;
-        border-radius: 7px !important;
-        color: #111827 !important;
-        font-weight: 800 !important;
-        box-shadow: none !important;
+        min-height: 24px !important;
+        height: 24px !important;
+        padding: 0 7px !important;
+        margin: 1px 0 !important;
+        border-radius: 4px !important;
+        border: 1px solid rgba(255,255,255,.08) !important;
+        border-left: 2px solid transparent !important;
+        background: #111827 !important;
+        color: #f4f6ff !important;
+        font-size: 10.8px !important;
+        font-weight: 700 !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
       }
 
       .sidebar .nav-dropdown-items .nav-link i,
       .sidebar .nav-dropdown-items .nav-link svg {
-        color: #3F53D9 !important;
-        fill: #3F53D9 !important;
+        flex: 0 0 12px !important;
+        width: 12px !important;
+        min-width: 12px !important;
+        max-width: 12px !important;
+        height: 12px !important;
+        color: #ffd02f !important;
+        fill: #ffd02f !important;
+        font-size: 11px !important;
       }
 
       .sidebar .nav-dropdown-items .nav-link:hover {
-        background: #e0e7ff !important;
-        border-color: #3F53D9 !important;
-        color: #050038 !important;
-        box-shadow: inset 4px 0 0 #3F53D9 !important;
+        background: #1f2a44 !important;
+        color: #ffffff !important;
+        border-left-color: #ff751c !important;
       }
 
+      .sidebar .nav-dropdown-items .nav-link:hover i,
+      .sidebar .nav-dropdown-items .nav-link:hover svg {
+        color: #ff751c !important;
+        fill: #ff751c !important;
+      }
+
+      /* Activo muy claro */
       .sidebar .nav-link.active,
       .sidebar .nav-link.menuitem.active,
       .sidebar .nav-dropdown-items .nav-link.active {
-        background: #3F53D9 !important;
-        border-color: #3F53D9 !important;
+        background: #4452e8 !important;
+        border-color: #4452e8 !important;
+        border-left-color: #ffd02f !important;
         color: #ffffff !important;
-        font-weight: 950 !important;
-        box-shadow: inset 5px 0 0 #FFD02F, 0 4px 12px rgba(63,83,217,.35) !important;
+        font-weight: 900 !important;
+        box-shadow: inset 3px 0 0 #ffd02f !important;
       }
 
       .sidebar .nav-link.active i,
@@ -577,30 +654,54 @@
         fill: #ffffff !important;
       }
 
+      /* Botón inferior de minimizar */
       .sidebar .sidebar-minimizer,
       .sidebar .sidebar-minimizer-button {
-        background: #FFD02F !important;
-        color: #050038 !important;
-        border-top: 2px solid #ffffff !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        background: #101827 !important;
+        color: #ffd02f !important;
+        border-top: 1px solid #ff751c !important;
       }
 
       .sidebar .sidebar-minimizer:hover,
       .sidebar .sidebar-minimizer-button:hover {
-        background: #ffffff !important;
+        background: #ff751c !important;
         color: #050038 !important;
       }
 
       .sidebar .sidebar-minimizer svg,
       .sidebar .sidebar-minimizer-button svg {
-        color: #050038 !important;
-        fill: #050038 !important;
+        width: 14px !important;
+        height: 14px !important;
+        color: currentColor !important;
+        fill: currentColor !important;
       }
 
+      /* Flecha de desplegable más discreta */
+      .sidebar .nav-dropdown-toggle::before {
+        right: 7px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        opacity: .9 !important;
+      }
+
+      /* Evita que CoreUI meta huecos visuales raros */
+      .sidebar .nav-dropdown-items:empty {
+        display: none !important;
+      }
+
+      .sidebar .nav-link br,
+      .sidebar .nav-dropdown-toggle br {
+        display: none !important;
+      }
+
+      /* Vista minimizada */
       body.sidebar-minimized .sidebar .nav-link,
       body.sidebar-minimized .sidebar .nav-dropdown-toggle {
         justify-content: center !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
       }
 
       body.sidebar-minimized .sidebar .nav-link i,
