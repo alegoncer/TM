@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Neotel PBX - Campañas Coremsa
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.5.2
-// @description  Mejora la pantalla de campañas de Neotel: filtros, ordenación, panel derecho oculto y secciones colapsables.
+// @version      1.5.3
+// @description  Mejora la pantalla de campañas de Neotel: filtros, ordenación, panel derecho oculto, contraste de menú lateral y secciones colapsables.
 // @author       Alejandro
 // @match        https://pbx.neotel2000.com/pbx/*
 // @run-at       document-idle
@@ -429,6 +429,111 @@
         }
       }
     `;
+
+    document.head.appendChild(style);
+  }
+
+  function installSidebarContrastCss() {
+    if ($('#tm-neotel-sidebar-contrast-style')) return;
+
+    const style = document.createElement('style');
+    style.id = 'tm-neotel-sidebar-contrast-style';
+    style.textContent = `
+      /* Contraste mejorado para barra lateral izquierda en todo Neotel */
+      .sidebar {
+        background: #1f2937 !important;
+        border-right: 1px solid #111827 !important;
+      }
+
+      .sidebar .sidebar-nav {
+        background: #1f2937 !important;
+      }
+
+      .sidebar .nav {
+        background: transparent !important;
+      }
+
+      .sidebar .nav-link,
+      .sidebar .nav-dropdown-toggle {
+        color: #f9fafb !important;
+        font-weight: 650 !important;
+      }
+
+      .sidebar .nav-link i,
+      .sidebar .nav-dropdown-toggle i,
+      .sidebar .nav-link svg,
+      .sidebar .nav-dropdown-toggle svg {
+        color: #f9fafb !important;
+        fill: #f9fafb !important;
+        opacity: 1 !important;
+      }
+
+      .sidebar .nav-link:hover,
+      .sidebar .nav-dropdown-toggle:hover {
+        background: #374151 !important;
+        color: #ffffff !important;
+      }
+
+      .sidebar .nav-dropdown.open > .nav-link,
+      .sidebar .nav-dropdown.open > .nav-dropdown-toggle {
+        background: #111827 !important;
+        color: #ffffff !important;
+        font-weight: 800 !important;
+        box-shadow: inset 4px 0 0 #FFD02F !important;
+      }
+
+      .sidebar .nav-dropdown-items {
+        background: #111827 !important;
+        border-left: 1px solid #374151 !important;
+      }
+
+      .sidebar .nav-dropdown-items .nav-link {
+        color: #e5e7eb !important;
+        padding-left: 28px !important;
+        font-weight: 600 !important;
+      }
+
+      .sidebar .nav-dropdown-items .nav-link:hover {
+        background: #2f3a4b !important;
+        color: #ffffff !important;
+      }
+
+      .sidebar .nav-link.active,
+      .sidebar .nav-link.menuitem.active,
+      .sidebar .nav-dropdown-items .nav-link.active {
+        background: #3F53D9 !important;
+        color: #ffffff !important;
+        font-weight: 850 !important;
+        box-shadow: inset 4px 0 0 #FFD02F !important;
+      }
+
+      .sidebar .nav-link.active i,
+      .sidebar .nav-link.menuitem.active i,
+      .sidebar .nav-link.active svg,
+      .sidebar .nav-link.menuitem.active svg {
+        color: #ffffff !important;
+        fill: #ffffff !important;
+      }
+
+      .sidebar .sidebar-minimizer,
+      .sidebar .sidebar-minimizer-button {
+        background: #111827 !important;
+        color: #ffffff !important;
+        border-top: 1px solid #374151 !important;
+      }
+
+      .sidebar .sidebar-minimizer:hover,
+      .sidebar .sidebar-minimizer-button:hover {
+        background: #3F53D9 !important;
+      }
+
+      .sidebar .sidebar-minimizer svg,
+      .sidebar .sidebar-minimizer-button svg {
+        color: #ffffff !important;
+        fill: #ffffff !important;
+      }
+    `;
+
     document.head.appendChild(style);
   }
 
@@ -930,6 +1035,7 @@
 
   function initCampaignEnhancements() {
     installCss();
+    installSidebarContrastCss();
     forceHideRightPanel();
 
     if (!isCampaignsAreaPresent()) return;
@@ -970,6 +1076,7 @@
   setTimeout(initCampaignEnhancements, 3000);
 
   setInterval(() => {
+    installSidebarContrastCss();
     forceHideRightPanel();
     hideUnwantedButtons(document);
     enhanceCampaignDetailSections();
