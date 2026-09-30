@@ -1,11 +1,15 @@
 // ==UserScript==
 // @name         Inno - Visor y ZIP de adjuntos
 // @namespace    https://github.com/alegoncer/TM
-// @version      1.1.2
-// @description  Añade Ver documentos y Descargar ZIP en la línea de DATOS ADJUNTOS.
+// @version      1.4.3
+// @description  Añade Ver documentos y Descargar ZIP solo en pantallas de Adjuntos.
 // @author       Alejandro
-// @match        *://repositorio.iformalia.es/*
-// @match        *://*.iformalia.es/*
+// @match        *://repositorio.iformalia.es/Utiles/Paginas/GestorFormularioCabeceraV1.aspx*
+// @match        *://*.iformalia.es/Utiles/Paginas/GestorFormularioCabeceraV1.aspx*
+// @match        *://repositorio.iformalia.es/Formularios/For/*/FormularioAdjuntos.aspx*
+// @match        *://*.iformalia.es/Formularios/For/*/FormularioAdjuntos.aspx*
+// @match        *://repositorio.iformalia.es/Utiles/Paginas/Formulario.aspx*
+// @match        *://*.iformalia.es/Utiles/Paginas/Formulario.aspx*
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // @run-at       document-idle
 // @grant        none
@@ -42,14 +46,10 @@
     };
 
     ready(() => {
-        console.log('[TM Adjuntos] Cargado en:', location.href);
-
-        if (isAdjuntosPage(window)) {
-            installInAdjuntosDocument(document, window);
-        }
+        tryInstallHere();
 
         if (window.top === window) {
-            observeParentIframe();
+            observeFormularioIframe();
         }
     });
 
@@ -61,32 +61,61 @@
         }
     }
 
-    function observeParentIframe() {
+    function tryInstallHere() {
+        if (isAdjuntosPage(window) || isAdjuntosDocument(document)) {
+            installInAdjuntosDocument(document, window);
+        }
+    }
+
+    function observeFormularioIframe() {
         const iframe = document.querySelector(`#${APP.iframeId}`);
         if (!iframe) return;
 
         const tryInstall = () => {
             const frameWindow = safeFrameWindow(iframe);
-            if (!frameWindow || !isAdjuntosPage(frameWindow)) return;
+            if (!frameWindow || !frameWindow.document) return;
+
+            if (!isAdjuntosPage(frameWindow) && !isAdjuntosDocument(frameWindow.document)) return;
 
             try {
                 installInAdjuntosDocument(frameWindow.document, frameWindow);
-            } catch (err) {
-                console.warn('[TM Adjuntos] No se pudo instalar en iframe:', err);
-            }
+            } catch (_) {}
         };
 
         iframe.addEventListener('load', () => setTimeout(tryInstall, 250));
-        setTimeout(tryInstall, 500);
-        setTimeout(tryInstall, 1500);
+
+        setTimeout(tryInstall, 400);
+        setTimeout(tryInstall, 1000);
+        setTimeout(tryInstall, 2000);
     }
 
     function isAdjuntosPage(win) {
         try {
-            return /FormularioAdjuntos\.aspx/i.test(String(win.location.href));
+            const path = String(win.location.pathname || '');
+            const href = String(win.location.href || '');
+
+            return (
+                /\/Formularios\/For\/[^/]+\/FormularioAdjuntos\.aspx/i.test(path) ||
+                /FormularioAdjuntos\.aspx/i.test(href)
+            );
         } catch (_) {
             return false;
         }
+    }
+
+    function isAdjuntosDocument(doc) {
+        if (!doc || !doc.body) return false;
+
+        const text = cleanText(doc.body.innerText || doc.body.textContent || '');
+
+        return (
+            /\bADJUNTOS\b/i.test(text) &&
+            (
+                /Falta\s+Adjunto/i.test(text) ||
+                /No\s+se\s+ha\s+sele/i.test(text) ||
+                /Examinar/i.test(text)
+            )
+        );
     }
 
     function safeFrameWindow(iframe) {
@@ -99,17 +128,12 @@
 
     function installInAdjuntosDocument(targetDocument, sourceWindow) {
         if (!targetDocument || !targetDocument.body) return;
-        if (!isAdjuntosPage(sourceWindow)) return;
         if (targetDocument.getElementById(APP.toolbarId)) return;
 
+        const header = findAdjuntosHeader(targetDocument);
+        if (!header) return;
+
         injectCss(targetDocument);
-
-        const header = findDatosAdjuntosHeader(targetDocument);
-        if (!header) {
-            console.warn('[TM Adjuntos] No encuentro el título DATOS ADJUNTOS.');
-            return;
-        }
-
         makeHeaderInline(header);
 
         const toolbar = targetDocument.createElement('span');
@@ -124,6 +148,7 @@
         toolbar.querySelector('[data-action="viewer"]').addEventListener('click', async (ev) => {
             await withBusy(ev.currentTarget, 'Cargando...', async () => {
                 const docs = collectDocuments(targetDocument, sourceWindow);
+
                 if (!docs.length) {
                     alert('No he encontrado documentos descargables en Adjuntos.');
                     return;
@@ -136,6 +161,7 @@
         toolbar.querySelector('[data-action="zip"]').addEventListener('click', async (ev) => {
             await withBusy(ev.currentTarget, 'Comprimiendo...', async () => {
                 const docs = collectDocuments(targetDocument, sourceWindow);
+
                 if (!docs.length) {
                     alert('No he encontrado documentos descargables en Adjuntos.');
                     return;
@@ -146,13 +172,11 @@
         });
     }
 
-    function findDatosAdjuntosHeader(doc) {
-        const all = Array.from(doc.querySelectorAll('td, div, span, font, b, strong, legend, label'));
+    function findAdjuntosHeader(doc) {
+        const all = Array.from(doc.querySelectorAll('td, div, span, font, b, strong, legend, label, h1, h2, h3'));
 
-        return all.find(el => {
-            const txt = cleanText(el.textContent);
-            return /^DATOS ADJUNTOS$/i.test(txt);
-        }) || all.find(el => /DATOS ADJUNTOS/i.test(cleanText(el.textContent)));
+        return all.find(el => /^(DATOS\s+)?ADJUNTOS$/i.test(cleanText(el.textContent))) ||
+               all.find(el => /^(DATOS\s+)?ADJUNTOS\b/i.test(cleanText(el.textContent)));
     }
 
     function makeHeaderInline(header) {
@@ -199,7 +223,6 @@
             });
         }
 
-        console.log('[TM Adjuntos] Documentos detectados:', docs.map(d => d.category));
         return docs;
     }
 
@@ -356,6 +379,7 @@
 
         t = t.split(/\bExaminar\b/i)[0];
         t = t.split(/\bFecha\s*:/i)[0];
+        t = t.split(/\bNo\s+se\s+ha\s+sele/i)[0];
         t = t.split(/\bNo\.{0,4}\b/i)[0];
         t = t.split(/\bFalta\s+Adjunto\b/i)[0];
         t = t.split(/\bOK\b/i)[0];
@@ -413,6 +437,37 @@
             extension: normalized.extension,
             mime: normalized.mime
         };
+    }
+
+    async function fetchPostBackDocument(doc) {
+        const { action, sourceWindow, control } = doc;
+        const form = control.closest('form') || sourceWindow.document.forms[0];
+
+        if (!form) {
+            throw new Error(`No encuentro el formulario para "${doc.category}".`);
+        }
+
+        const fetcher = (sourceWindow.fetch || window.fetch).bind(sourceWindow);
+        const formData = new sourceWindow.FormData(form);
+        const actionUrl = new sourceWindow.URL(form.getAttribute('action') || sourceWindow.location.href, sourceWindow.location.href).href;
+        const method = String(form.getAttribute('method') || 'POST').toUpperCase();
+
+        if (action.type === 'postback') {
+            formData.set('__EVENTTARGET', action.target || '');
+            formData.set('__EVENTARGUMENT', action.argument || '');
+        } else if (action.type === 'image-submit') {
+            formData.set(`${action.name}.x`, '1');
+            formData.set(`${action.name}.y`, '1');
+        } else if (action.type === 'submit') {
+            formData.set(action.name, action.value || '');
+        }
+
+        return await fetcher(actionUrl, {
+            method,
+            body: formData,
+            credentials: 'include',
+            cache: 'no-store'
+        });
     }
 
     async function normalizeDownloadedFile(blob, sourceName, contentType) {
@@ -477,37 +532,6 @@
             .join('');
     }
 
-    async function fetchPostBackDocument(doc) {
-        const { action, sourceWindow, control } = doc;
-        const form = control.closest('form') || sourceWindow.document.forms[0];
-
-        if (!form) {
-            throw new Error(`No encuentro el formulario para "${doc.category}".`);
-        }
-
-        const fetcher = (sourceWindow.fetch || window.fetch).bind(sourceWindow);
-        const formData = new sourceWindow.FormData(form);
-        const actionUrl = new sourceWindow.URL(form.getAttribute('action') || sourceWindow.location.href, sourceWindow.location.href).href;
-        const method = String(form.getAttribute('method') || 'POST').toUpperCase();
-
-        if (action.type === 'postback') {
-            formData.set('__EVENTTARGET', action.target || '');
-            formData.set('__EVENTARGUMENT', action.argument || '');
-        } else if (action.type === 'image-submit') {
-            formData.set(`${action.name}.x`, '1');
-            formData.set(`${action.name}.y`, '1');
-        } else if (action.type === 'submit') {
-            formData.set(action.name, action.value || '');
-        }
-
-        return await fetcher(actionUrl, {
-            method,
-            body: formData,
-            credentials: 'include',
-            cache: 'no-store'
-        });
-    }
-
     async function openViewerModal(docs) {
         const rootWindow = getRootWindow();
         const rootDocument = rootWindow.document;
@@ -548,6 +572,7 @@
         };
 
         modal.querySelector('.tm-doczip-close').onclick = close;
+
         modal.addEventListener('click', ev => {
             if (ev.target === modal) close();
         });
@@ -639,7 +664,7 @@
             compression: 'DEFLATE'
         });
 
-        downloadBlob(zipBlob, `${sanitizeFileName(getSolicitudName(), 'Solicitudes')}.zip`);
+        downloadBlob(zipBlob, `${sanitizeFileName(getSolicitudName(), 'Adjuntos')}.zip`);
 
         if (errors.length) {
             alert(`ZIP descargado, pero algunos documentos fallaron:\n\n${errors.join('\n')}`);
@@ -672,6 +697,7 @@
         try {
             if (window.top && window.top.document) return window.top;
         } catch (_) {}
+
         return window;
     }
 
@@ -683,19 +709,21 @@
         if (title) return title;
 
         const pageText = cleanText(rootDocument.body?.innerText || '');
-        const found = pageText.match(/\(\d+\)\s*-\s*Solicitudes\s+[^\n\r]+/i);
+        const found = pageText.match(/\(\d+\)\s*-\s*[^\n\r]+/i);
         if (found) return cleanText(found[0]);
 
         const id = new URLSearchParams(rootWindow.location.search).get('Id');
-        return id ? `(${id}) - Solicitudes` : 'Solicitudes';
+        return id ? `(${id}) - Adjuntos` : 'Adjuntos';
     }
 
     function filenameFromContentDisposition(header) {
         if (!header) return '';
 
         const star = header.match(/filename\*\s*=\s*([^;]+)/i);
+
         if (star) {
             let value = star[1].trim().replace(/^UTF-8''/i, '').replace(/^['"]|['"]$/g, '');
+
             try {
                 return decodeURIComponent(value);
             } catch (_) {
@@ -792,7 +820,6 @@
         try {
             await fn();
         } catch (err) {
-            console.error('[TM Adjuntos]', err);
             alert(err.message || String(err));
         } finally {
             button.disabled = false;
