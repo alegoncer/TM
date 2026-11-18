@@ -10,8 +10,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
-// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/work/esoib-preinscripciones.user.js
-// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/work/esoib-preinscripciones.user.js
+// @updateURL    https://raw.githubusercontent.com/alegoncer/TM/main/work/esoib.user.js
+// @downloadURL  https://raw.githubusercontent.com/alegoncer/TM/main/work/esoib.user.js
 // @homepageURL  https://github.com/alegoncer/TM
 // @supportURL   https://github.com/alegoncer/TM/issues
 // ==/UserScript==
