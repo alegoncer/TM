@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-SOIB: recoger preinscripciones y marcar contactado
 // @namespace    https://github.com/alegoncer/TM
-// @version      0.6.1
+// @version      0.8.0
 // @description  Recorre las convocatorias que elijas, baja un único CSV con las preinscripciones con ✗ en «Contactado» y las pasa a ✓. Con ventana previa, barra de progreso y copia de seguridad.
 // @author       alegoncer
 // @match        https://intranet.caib.es/esoib/*
@@ -645,8 +645,9 @@ if (typeof module !== 'undefined') module.exports = { crearPagina };
 // Solo se usa dentro de Tampermonkey.
 //
 // Qué ve la persona:
-//  1. Un panel pequeño abajo a la derecha con el botón «Recoger y marcar».
-//  2. Al pulsarlo, una ventana con la entidad y los códigos de convocatoria que se van a mirar (editables).
+//  1. Una burbuja flotante (se puede mover) abajo a la derecha. Al pulsarla se abre un panel con «Descargar preinscripciones».
+//     Con el panel cerrado, la burbuja enseña el avance (37%), ✓ si terminó bien y ! si se paró o falló.
+//  2. Al pulsar ese botón, una ventana con la entidad y los códigos de convocatoria que se van a mirar (editables).
 //     Se recuerdan, por entidad, los códigos de la última vez.
 //  3. Una barra de progreso mientras trabaja.
 //  4. Al terminar, UN archivo CSV con las personas que estaban con ✗ y ahora están con ✓.
@@ -717,75 +718,232 @@ if (typeof module !== 'undefined') module.exports = { crearPagina };
   const nombreArchivo = (reg) => `CONJUNTO_${reg.entidad}_${reg.sello}${reg.parado ? '_PARADO' : ''}.csv`;
   const bajarRegistro = (reg) => bajarArchivo(nombreArchivo(reg), construirCsv(reg.filas, cfg.columnas, cfg.separador));
 
-  // ---------- panel ----------
-  const panel = el('div', 'position:fixed;right:12px;bottom:12px;z-index:99999;width:320px;padding:10px;'
-    + 'background:#fff;border:2px solid #7a2e8e;border-radius:8px;font:13px/1.4 sans-serif;color:#222;'
-    + 'box-shadow:0 2px 10px rgba(0,0,0,.25)');
+  // ---------- estilos propios (con prefijo esoib- para no chocar con los de E-SOIB) ----------
+  const ESTILOS = `
+  .esoib-x, .esoib-x * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .esoib-burbuja { position: fixed; z-index: 99999; width: 54px; height: 54px; padding: 0; border-radius: 50%; border: 3px solid #fff;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--c) 65%, #fff), var(--c)); color: #fff; font-weight: 700; line-height: 1;
+    letter-spacing: .5px; cursor: grab; box-shadow: 0 4px 14px rgba(50,10,70,.45); transition: transform .15s, box-shadow .15s;
+    touch-action: none; user-select: none; -webkit-user-select: none; }
+  .esoib-burbuja:hover { transform: scale(1.08); }
+  .esoib-burbuja.esoib-arrastra { cursor: grabbing; transform: scale(1.14); box-shadow: 0 10px 26px rgba(50,10,70,.5); transition: none; }
+  .esoib-burbuja.esoib-trabaja { animation: esoib-pulso 1.6s ease-out infinite; }
+  @keyframes esoib-pulso { 0% { box-shadow: 0 4px 14px rgba(50,10,70,.45), 0 0 0 0 rgba(122,46,142,.55); }
+    100% { box-shadow: 0 4px 14px rgba(50,10,70,.45), 0 0 0 16px rgba(122,46,142,0); } }
+  @keyframes esoib-sube { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+  @keyframes esoib-fade { from { opacity: 0; } to { opacity: 1; } }
+  .esoib-panel { position: fixed; z-index: 99999; width: 330px; max-width: calc(100vw - 16px); background: #fff; border-radius: 16px;
+    overflow: hidden; color: #2b2233; font-size: 13px; line-height: 1.45; box-shadow: 0 12px 34px rgba(40,0,60,.38); animation: esoib-sube .18s ease-out; }
+  .esoib-cab { display: flex; align-items: center; gap: 10px; padding: 12px 14px; color: #fff; background: linear-gradient(135deg, #8a35a0, #4f1a62); }
+  .esoib-cab-t { flex: 1; font-weight: 700; font-size: 15px; }
+  .esoib-cab-s { font-weight: 400; font-size: 11.5px; opacity: .85; }
+  .esoib-icono { width: 36px; height: 36px; border-radius: 11px; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 19px; }
+  .esoib-cerrar { border: none; background: rgba(255,255,255,.18); color: #fff; width: 26px; height: 26px; border-radius: 50%; cursor: pointer; font-size: 13px; padding: 0; line-height: 1; }
+  .esoib-cerrar:hover { background: rgba(255,255,255,.34); }
+  .esoib-cuerpo { padding: 14px; }
+  .esoib-principal { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 13px 14px; border: none; border-radius: 12px;
+    color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #9b3fb3, #5b1f6e);
+    box-shadow: 0 4px 12px rgba(91,31,110,.35); transition: transform .12s, box-shadow .12s, filter .12s; }
+  .esoib-principal:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 7px 16px rgba(91,31,110,.42); }
+  .esoib-principal:active:not(:disabled) { transform: none; }
+  .esoib-principal:disabled { filter: grayscale(.8) opacity(.6); cursor: default; }
+  .esoib-nota { margin: 8px 2px 0; font-size: 12px; color: #6b5d73; text-align: center; }
+  .esoib-estado { margin: 12px 0 4px; white-space: pre-wrap; background: #f7f1fa; border-radius: 10px; padding: 9px 11px; font-size: 12.5px; }
+  .esoib-estado:empty { display: none; }
+  .esoib-barra { width: 100%; height: 12px; margin-top: 8px; accent-color: #8a35a0; }
+  .esoib-fila { display: flex; gap: 8px; flex-wrap: wrap; }
+  .esoib-sec { border: 1.5px solid #c9a6d6; background: #fff; color: #6a2a80; border-radius: 9px; padding: 6px 11px; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .esoib-sec:hover:not(:disabled) { background: #f7f1fa; }
+  .esoib-sec:disabled { opacity: .5; cursor: default; }
+  .esoib-copia { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #d9c6e0; font-size: 12px; color: #4a3d52; }
+  .esoib-fondo { position: fixed; inset: 0; z-index: 100000; background: rgba(30,10,45,.5); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center; animation: esoib-fade .15s ease-out; }
+  .esoib-caja { width: 450px; max-width: 94vw; max-height: 94vh; overflow: auto; background: #fff; border-radius: 18px; color: #2b2233;
+    font-size: 14px; line-height: 1.45; box-shadow: 0 20px 50px rgba(30,0,50,.5); animation: esoib-sube .2s ease-out; }
+  .esoib-caja .esoib-cab { padding: 16px 20px; }
+  .esoib-caja .esoib-icono { width: 42px; height: 42px; font-size: 22px; }
+  .esoib-caja-cuerpo { padding: 16px 20px 20px; }
+  .esoib-etq { display: block; font-weight: 700; margin: 12px 0 4px; }
+  .esoib-campo { width: 100%; padding: 9px 11px; font-size: 15px; letter-spacing: .3px; border: 1.5px solid #d9c6e0; border-radius: 10px; outline: none; color: #2b2233; background: #fff; }
+  .esoib-campo:focus { border-color: #8a35a0; box-shadow: 0 0 0 3px rgba(138,53,160,.18); }
+  .esoib-ayuda { font-size: 12px; color: #6b5d73; margin: 5px 1px 0; }
+  .esoib-entidad { padding: 9px 12px; background: #f7f1fa; border-radius: 10px; }
+  .esoib-ensayo { display: flex; gap: 8px; align-items: center; margin: 12px 0 0; cursor: pointer; }
+  .esoib-aviso { margin: 14px 0 4px; padding: 10px 12px; background: #fbf6e9; border-left: 4px solid #e0a82e; border-radius: 8px; font-size: 13px; }
+  .esoib-error { color: #b00020; min-height: 18px; margin: 6px 0 0; white-space: pre-wrap; font-size: 13px; }
+  .esoib-pie { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+  .esoib-pie .esoib-sec { margin-top: 0; padding: 10px 18px; font-size: 14px; border-radius: 11px; }
+  .esoib-pie .esoib-principal { width: auto; padding: 10px 24px; font-size: 14px; }
+  `;
+  const hoja = document.createElement('style');
+  hoja.textContent = ESTILOS;
+  document.head.appendChild(hoja);
+
+  function elc(tag, clase, texto) { const e = document.createElement(tag); e.className = clase; if (texto !== undefined) e.textContent = texto; return e; }
+
+  // ---------- burbuja y panel ----------
+  const COLOR = '#7a2e8e';
+  const CLAVE_POS = 'esoib_burbuja';
+  const TAM = 54;
+  const burbuja = elc('button', 'esoib-x esoib-burbuja', 'SOIB');
+  burbuja.title = 'Preinscripciones E-SOIB (arrástrala si estorba)';
+  burbuja.style.setProperty('--c', COLOR);
+
+  const panel = elc('div', 'esoib-x esoib-panel');
+  panel.style.display = 'none';
   const tituloBase = cfg.modoEnsayo ? 'Preinscripciones · ENSAYO (no marca)' : 'Preinscripciones';
-  const titulo = el('div', 'font-weight:bold', tituloBase);
-  const estado = el('div', 'margin:6px 0;white-space:pre-wrap');
-  const barra = el('progress', 'width:100%;display:none;height:14px');
-  barra.max = 100; barra.value = 0;
-  const filaBotones = el('div', 'display:flex;gap:6px;flex-wrap:wrap;margin-top:6px');
-  const boton = el('button', '', 'Recoger y marcar');
-  const parar = el('button', 'display:none', 'Parar');
-  const bajar = el('button', 'display:none', 'Volver a descargar el archivo');
-  const copiaZona = el('div', 'margin-top:8px;padding-top:6px;border-top:1px solid #ddd;font-size:12px;display:none');
-  filaBotones.append(boton, parar, bajar);
-  panel.append(titulo, estado, barra, filaBotones, copiaZona);
-  document.body.appendChild(panel);
+  const titulo = elc('div', '', tituloBase);
+  const cabT = elc('div', 'esoib-cab-t');
+  cabT.append(titulo, elc('div', 'esoib-cab-s', 'E-SOIB'));
+  const cerrarPanel = elc('button', 'esoib-cerrar', '✕');
+  cerrarPanel.title = 'Cerrar (si está trabajando, sigue)';
+  const cab = elc('div', 'esoib-cab');
+  cab.append(elc('div', 'esoib-icono', '📋'), cabT, cerrarPanel);
+
+  const boton = elc('button', 'esoib-principal');
+  boton.append(elc('span', '', '⬇'), elc('span', '', 'Descargar preinscripciones'));
+  const nota = elc('div', 'esoib-nota', 'Recoge las que tienen ✗ y las marca como contactadas.');
+  const estado = elc('div', 'esoib-estado');
+  const barra = elc('progress', 'esoib-barra');
+  barra.max = 100; barra.value = 0; barra.style.display = 'none';
+  const parar = elc('button', 'esoib-sec', 'Parar'); parar.style.display = 'none';
+  const bajar = elc('button', 'esoib-sec', 'Volver a descargar el archivo'); bajar.style.display = 'none';
+  const filaBotones = elc('div', 'esoib-fila');
+  filaBotones.append(parar, bajar);
+  const copiaZona = elc('div', 'esoib-copia'); copiaZona.style.display = 'none';
+  const cuerpo = elc('div', 'esoib-cuerpo');
+  cuerpo.append(boton, nota, estado, barra, filaBotones, copiaZona);
+  panel.append(cab, cuerpo);
+  document.body.append(panel, burbuja);
   if (!gm.disponible) estado.textContent = 'Tampermonkey no ofrece el almacén para la copia de seguridad: no se puede marcar.';
+
+  // Dónde está la burbuja (se recuerda) y dónde se abre el panel (hacia el lado donde hay sitio).
+  // Hasta que se mueva, la burbuja va pegada abajo a la derecha (CSS); al moverla pasa a coordenadas fijas.
+  burbuja.style.right = '16px'; burbuja.style.bottom = '16px';
+  let movida = false;
+  function posBurbuja() { const r = burbuja.getBoundingClientRect(); return { x: r.left, y: r.top }; }
+  function fijarBurbuja(x, y) {
+    const bx = Math.max(4, Math.min(x, window.innerWidth - TAM - 4));
+    const by = Math.max(4, Math.min(y, window.innerHeight - TAM - 4));
+    burbuja.style.left = bx + 'px'; burbuja.style.top = by + 'px';
+    burbuja.style.right = 'auto'; burbuja.style.bottom = 'auto';
+    movida = true;
+    if (panel.style.display !== 'none') colocarPanel();
+  }
+  function colocarPanel() {
+    const { x, y } = posBurbuja();
+    const abajo = y + TAM / 2 > window.innerHeight / 2;     // burbuja en la mitad de abajo: el panel sale por encima
+    const derecha = x + TAM / 2 > window.innerWidth / 2;    // burbuja en la mitad derecha: el panel se alinea a su derecha
+    panel.style.top = abajo ? 'auto' : (y + TAM + 10) + 'px';
+    panel.style.bottom = abajo ? (window.innerHeight - y + 10) + 'px' : 'auto';
+    panel.style.left = derecha ? 'auto' : x + 'px';
+    panel.style.right = derecha ? (window.innerWidth - x - TAM) + 'px' : 'auto';
+  }
+  const abrirPanel = (abrir) => { panel.style.display = abrir ? '' : 'none'; if (abrir) colocarPanel(); };
+  {
+    const guardada = gm.leer(CLAVE_POS);
+    if (guardada && Number.isFinite(guardada.x) && Number.isFinite(guardada.y)) fijarBurbuja(guardada.x, guardada.y);
+    window.addEventListener('resize', () => { if (movida) { const p = posBurbuja(); fijarBurbuja(p.x, p.y); } });
+  }
+
+  // Arrastrar: si el ratón se mueve más de unos píxeles es un arrastre; si no, es un clic y se abre/cierra el panel.
+  let arrastre = null;
+  burbuja.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0) return;
+    const p = posBurbuja();
+    arrastre = { px: ev.clientX, py: ev.clientY, x0: p.x, y0: p.y, movido: false };
+    try { burbuja.setPointerCapture(ev.pointerId); } catch (e) { /* no pasa nada */ }
+  });
+  burbuja.addEventListener('pointermove', (ev) => {
+    if (!arrastre) return;
+    const dx = ev.clientX - arrastre.px, dy = ev.clientY - arrastre.py;
+    if (!arrastre.movido && Math.hypot(dx, dy) < 5) return;
+    arrastre.movido = true;
+    burbuja.classList.add('esoib-arrastra');
+    fijarBurbuja(arrastre.x0 + dx, arrastre.y0 + dy);
+  });
+  const soltar = () => {
+    if (!arrastre) return;
+    const movido = arrastre.movido;
+    arrastre = null;
+    burbuja.classList.remove('esoib-arrastra');
+    if (movido) { try { if (gm.disponible) gm.escribir(CLAVE_POS, posBurbuja()); } catch (e) { /* solo comodidad */ } }
+    else abrirPanel(panel.style.display === 'none');
+  };
+  burbuja.addEventListener('pointerup', soltar);
+  burbuja.addEventListener('pointercancel', () => { arrastre = null; burbuja.classList.remove('esoib-arrastra'); });
+  burbuja.addEventListener('click', (ev) => { if (ev.detail === 0) abrirPanel(panel.style.display === 'none'); });   // teclado (Intro/Espacio)
+  cerrarPanel.onclick = () => abrirPanel(false);
+
+  // La burbuja avisa de lo que pasa aunque el panel esté cerrado: «37%» trabajando, ✓ terminó bien, ! se paró o falló.
+  function pintarBurbuja(texto, color, trabajando) {
+    burbuja.textContent = texto;
+    burbuja.style.setProperty('--c', color);
+    burbuja.style.fontSize = texto.length > 3 ? '13px' : '17px';
+    burbuja.classList.toggle('esoib-trabaja', !!trabajando);
+  }
+  pintarBurbuja('SOIB', COLOR, false);
+  burbuja.style.fontSize = '14px';
 
   function pintarCopia() {
     const reg = almacen.leer();
     copiaZona.textContent = '';
     if (!reg || !reg.filas || reg.filas.length === 0) { copiaZona.style.display = 'none'; return; }
     copiaZona.style.display = '';
-    copiaZona.append(el('div', '', `Última pasada guardada: ${reg.entidad} · ${reg.fecha} · ${reg.filas.length} persona(s)${reg.parado ? ' · PARADA' : ''}`));
-    const b1 = el('button', 'margin:4px 6px 0 0', 'Volver a bajarla');
+    copiaZona.append(elc('div', '', `Última pasada guardada: ${reg.entidad} · ${reg.fecha} · ${reg.filas.length} persona(s)${reg.parado ? ' · PARADA' : ''}`));
+    const fila = elc('div', 'esoib-fila');
+    const b1 = elc('button', 'esoib-sec', 'Volver a bajarla');
     b1.onclick = () => { bajarRegistro(reg); };
-    const b2 = el('button', 'margin-top:4px', 'Borrar la copia guardada');
+    const b2 = elc('button', 'esoib-sec', 'Borrar la copia guardada');
     b2.onclick = () => {
       if (window.confirm('Se borra del Tampermonkey la copia de la última pasada (' + reg.filas.length + ' personas). ¿Seguro?')) { almacen.borrar(); pintarCopia(); }
     };
-    copiaZona.append(b1, b2);
+    fila.append(b1, b2);
+    copiaZona.append(fila);
   }
   pintarCopia();
 
   // ---------- ventana previa ----------
   function abrirVentana() {
     return new Promise((resolve) => {
-      const fondo = el('div', 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center');
-      const caja = el('div', 'width:420px;max-width:92vw;background:#fff;border-radius:10px;padding:16px;font:14px/1.45 sans-serif;color:#222;box-shadow:0 6px 24px rgba(0,0,0,.4)');
-      const h = el('div', 'font-size:17px;font-weight:bold;margin-bottom:8px', 'Recoger y marcar preinscripciones');
-      const lEnt = el('div', 'margin-bottom:8px', 'Entidad: …');
-      const lCod = el('label', 'display:block;font-weight:bold', 'Códigos de convocatoria (separados por comas)');
-      const inCod = el('input', 'width:100%;box-sizing:border-box;padding:6px;margin:4px 0;font-size:14px');
+      const fondo = elc('div', 'esoib-x esoib-fondo');
+      const caja = elc('div', 'esoib-caja');
+      const cabV = elc('div', 'esoib-cab');
+      const cabVT = elc('div', 'esoib-cab-t', 'Descargar preinscripciones');
+      cabVT.append(elc('div', 'esoib-cab-s', 'Elige qué convocatorias mirar'));
+      cabV.append(elc('div', 'esoib-icono', '⬇'), cabVT);
+      const cuerpoV = elc('div', 'esoib-caja-cuerpo');
+      const lEnt = elc('div', 'esoib-entidad', 'Entidad: …');
+      const lCod = elc('label', 'esoib-etq', 'Códigos de convocatoria (separados por comas)');
+      const inCod = elc('input', 'esoib-campo');
       inCod.type = 'text';
-      const ayuda = el('div', 'font-size:12px;color:#555;margin-bottom:8px', 'Puedes quitar los que no quieras o añadir otros. Se recuerdan para la próxima vez con esta entidad.');
-      const lEns = el('label', 'display:flex;gap:6px;align-items:center;margin:6px 0');
-      const chk = el('input'); chk.type = 'checkbox'; chk.checked = !!cfg.modoEnsayo;
-      lEns.append(chk, el('span', '', 'Solo ensayo: no marca nada en E-SOIB'));
-      const aviso = el('div', 'margin:8px 0;padding:8px;background:#f6eefa;border-radius:6px;font-size:13px',
+      const ayuda = elc('div', 'esoib-ayuda', 'Puedes quitar los que no quieras o añadir otros. Se recuerdan para la próxima vez con esta entidad.');
+      const lEns = elc('label', 'esoib-ensayo');
+      const chk = document.createElement('input'); chk.type = 'checkbox'; chk.checked = !!cfg.modoEnsayo;
+      lEns.append(chk, elc('span', '', 'Solo ensayo: no marca nada en E-SOIB'));
+      const aviso = elc('div', 'esoib-aviso',
         'Se descargará UN archivo con las personas que estaban con ✗ y se marcarán como contactadas (✗ pasa a ✓) en E-SOIB. Antes de marcar a cada una se guarda una copia de seguridad.');
-      const msg = el('div', 'color:#b00020;min-height:18px;margin:4px 0;white-space:pre-wrap');
-      const botones = el('div', 'display:flex;gap:8px;justify-content:flex-end;margin-top:10px');
-      const bEmpezar = el('button', 'padding:6px 14px', 'Empezar');
-      const bCancelar = el('button', 'padding:6px 14px', 'Cancelar');
+      const msg = elc('div', 'esoib-error');
+      const botones = elc('div', 'esoib-pie');
+      const bEmpezar = elc('button', 'esoib-principal', 'Empezar');
+      const bCancelar = elc('button', 'esoib-sec', 'Cancelar');
       botones.append(bCancelar, bEmpezar);
 
       const previa = almacen.leer();
-      caja.append(h, lEnt, lCod, inCod, ayuda, lEns, aviso);
+      cuerpoV.append(lEnt, lCod, inCod, ayuda, lEns, aviso);
       if (previa && previa.filas && previa.filas.length) {
-        caja.append(el('div', 'font-size:12px;color:#555;margin-bottom:4px',
+        cuerpoV.append(elc('div', 'esoib-ayuda',
           `Hay una copia guardada de la pasada anterior (${previa.entidad}, ${previa.filas.length} persona(s)). Al empezar se sustituye; si la quieres, bájala antes con «Volver a bajarla» del panel.`));
       }
-      caja.append(msg, botones);
+      cuerpoV.append(msg, botones);
+      caja.append(cabV, cuerpoV);
       fondo.appendChild(caja);
       document.body.appendChild(fondo);
       setTimeout(() => inCod.focus(), 0);   // el foco en el campo, no en un botón: un Enter suelto no empieza nada
 
-      const cerrar = (valor) => { fondo.remove(); resolve(valor); };
+      const alTeclear = (ev) => { if (ev.key === 'Escape' && !bCancelar.disabled) cerrar(null); };
+      document.addEventListener('keydown', alTeclear);
+      const cerrar = (valor) => { document.removeEventListener('keydown', alTeclear); fondo.remove(); resolve(valor); };
       bCancelar.onclick = () => cerrar(null);
 
       let textoEntidad = '';
@@ -797,7 +955,7 @@ if (typeof module !== 'undefined') module.exports = { crearPagina };
         textoEntidad = await pagina.textoEntidad();
         etiqueta = etiquetaEntidad(cfg, textoEntidad);
         lEnt.textContent = '';
-        lEnt.append('Entidad: ', el('b', '', etiqueta), el('span', 'color:#555;font-size:12px', '  ' + textoEntidad.replace(/\s+/g, ' ').trim().slice(0, 70)));
+        lEnt.append('Entidad: ', elc('b', '', etiqueta), el('span', 'color:#6b5d73;font-size:12px', '  ' + textoEntidad.replace(/\s+/g, ' ').trim().slice(0, 70)));
         inCod.value = codigosIniciales(cfg, etiqueta, gm.leer(CLAVE_CODIGOS)).join(', ');
       })();
 
@@ -807,7 +965,7 @@ if (typeof module !== 'undefined') module.exports = { crearPagina };
         const { codigos, invalidos } = parseCodigos(inCod.value);
         if (invalidos.length) { msg.textContent = 'No son códigos válidos (solo cifras): ' + invalidos.join(', '); return; }
         if (codigos.length === 0) { msg.textContent = 'Pon al menos un código de convocatoria.'; return; }
-        bEmpezar.disabled = true; bCancelar.disabled = true; msg.style.color = '#555'; msg.textContent = 'Comprobando los códigos en E-SOIB…';
+        bEmpezar.disabled = true; bCancelar.disabled = true; msg.style.color = '#6b5d73'; msg.textContent = 'Comprobando los códigos en E-SOIB…';
         const pagina = crearPagina(cfg, window);
         let disponibles = [];
         try { disponibles = await pagina.convocatoriasDisponibles(); } catch (e) { disponibles = null; } finally { pagina.cerrar(); }
@@ -852,6 +1010,7 @@ if (typeof module !== 'undefined') module.exports = { crearPagina };
       titulo.textContent = eleccion.soloEnsayo ? 'Preinscripciones · ENSAYO (no marca)' : 'Preinscripciones · MARCANDO';
       estado.textContent = `Entidad ${eleccion.entidad} · convocatorias ${eleccion.convocatorias.join(', ')}\nBuscando cursos… no cierres esta pestaña.`;
 
+      pintarBurbuja('0%', COLOR, true);
       const alProgreso = (e) => {
         bloqueo.poner();   // sigue vivo mientras trabaja
         if (e.fase === 'buscando') {
@@ -861,6 +1020,7 @@ if (typeof module !== 'undefined') module.exports = { crearPagina };
           barra.value = 10 + Math.round(((e.cursos - 1) / Math.max(e.cursosTotal, 1)) * 90);
           estado.textContent = `Curso ${e.cursos} de ${e.cursosTotal} (${e.curso})\n${e.personas} persona(s) con ✗ · ${e.marcadas} marcada(s)`;
         } else if (e.fase === 'fin') { barra.value = 100; }
+        try { pintarBurbuja(`${Math.round(barra.value)}%`, COLOR, true); } catch (x) { /* solo adorno */ }
       };
 
       // Copia de seguridad de cada persona: se guarda y se comprueba ANTES de que el motor la marque.
@@ -890,6 +1050,8 @@ if (typeof module !== 'undefined') module.exports = { crearPagina };
         r.paradaPor ? `PARADO: ${r.paradaPor}` : 'Terminado sin incidencias.',
         r.paradaPor && registro.filas.length > 0 ? 'El archivo incluye a quienes se guardaron antes de parar.' : '',
       ].filter(Boolean).join('\n');
+      pintarBurbuja(r.paradaPor ? '!' : '✓', r.paradaPor ? '#b00020' : '#1e7e34', false);
+      abrirPanel(true);   // al terminar, el resultado se enseña solo
       if (registro.filas.length > 0) {
         bajar.style.display = '';
         try { bajarRegistro(registro); } catch (e) { estado.textContent += '\nNo se pudo bajar solo: pulsa «Volver a descargar el archivo».'; }
@@ -897,6 +1059,8 @@ if (typeof module !== 'undefined') module.exports = { crearPagina };
     } catch (e) {
       estado.textContent = `Error del script: ${e && e.message ? e.message : e}\nSi ya se había empezado, mira «Última pasada guardada» y comprueba a mano la última persona.`;
       pintarCopia();
+      pintarBurbuja('!', '#b00020', false);
+      abrirPanel(true);
     } finally {
       if (pagina) pagina.cerrar();
       if (bloqueado) bloqueo.quitar();
