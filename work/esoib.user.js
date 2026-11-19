@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-SOIB: recoger preinscripciones y marcar contactado
 // @namespace    https://github.com/alegoncer/TM
-// @version      0.8.0
+// @version      0.8.1
 // @description  Recorre las convocatorias que elijas, baja un único CSV con las preinscripciones con ✗ en «Contactado» y las pasa a ✓. Con ventana previa, barra de progreso y copia de seguridad.
 // @author       alegoncer
 // @match        https://intranet.caib.es/esoib/*
@@ -141,7 +141,7 @@ function convocatoriasDe(config, entidad) {
 
 function normalizar(texto) {
   return String(texto || '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
@@ -178,7 +178,7 @@ function construirCsv(filas, columnas, separador) {
   for (const fila of filas) {
     lineas.push(columnas.map((c) => celdaCsv(fila[c], separador)).join(separador));
   }
-  return '﻿' + lineas.join('\r\n') + '\r\n';
+  return '\uFEFF' + lineas.join('\r\n') + '\r\n';
 }
 
 function claveVista(nif, curso) {
@@ -249,6 +249,12 @@ function enlaceSiguiente(pie, pag) {
   return i >= 0 && i + 1 < paginas.length ? paginas[i + 1] : null;
 }
 
+// Id con el que se abre la página de preinscripciones de un curso. En la lista, la fila lleva ese id a secas
+// (cursos T…) o con un sufijo «id-otro» (cursos FO-…); la página solo entiende la parte de antes del guion.
+function idCurso(rk) {
+  return String(rk == null ? '' : rk).split('-')[0].trim();
+}
+
 // Códigos que se proponen en la ventana: lo que esa entidad usó la última vez; si no hay nada, la lista general.
 function codigosIniciales(config, etiqueta, guardados) {
   const mios = guardados && Array.isArray(guardados[etiqueta]) ? guardados[etiqueta] : [];
@@ -264,7 +270,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     validarConfig, convocatoriasDe, entidadPorNombrePagina, nombreFichero, construirCsv, claveVista,
     parsePaginacion, quitarTitulo, nombreCompleto, parseCodigos, etiquetaEntidad, convocatoriasPorDefecto,
-    codigosIniciales, recordarCodigos, enlaceSiguiente,
+    codigosIniciales, recordarCodigos, enlaceSiguiente, idCurso,
   };
 }
 
@@ -415,7 +421,7 @@ if (typeof module !== 'undefined') module.exports = { ejecutarPasada };
 
 const _P = (typeof module !== 'undefined')
   ? require('./nucleo.js')
-  : { parsePaginacion, quitarTitulo, nombreCompleto, enlaceSiguiente };
+  : { parsePaginacion, quitarTitulo, nombreCompleto, enlaceSiguiente, idCurso };
 
 function crearPagina(config, ventana) {
   const S = config.selectores;
@@ -490,6 +496,12 @@ function crearPagina(config, ventana) {
   async function cargarCurso(curso) {
     const P = S.preinscripciones;
     await cargar(P.urlConId + curso.id);
+    // Si E-SOIB no abre la página de preinscripciones sino otra (p. ej. la de inicio), se dice claro en vez de esperar al tiempo agotado.
+    let ruta = '';
+    try { ruta = marco.contentWindow.location.pathname; } catch (e) { ruta = ''; }
+    if (ruta && !ruta.includes('expedient_preinscripcions')) {
+      throw new Error(`E-SOIB no abrió las preinscripciones del curso ${curso.referencia} (llevó a ${ruta}).`);
+    }
     await esperarHasta(() => q(P.cuerpo));
     await esperarHasta(() => { const pie = q(P.pie); return pie && _P.parsePaginacion(pie.innerText); });
     const titulo = marco.contentDocument.title || '';
@@ -556,7 +568,7 @@ function crearPagina(config, ventana) {
       const { items, totalFilas } = await recorrerPaginas(L.cuerpo, L.pie, (cuerpo) => filasDe(cuerpo)
         .map((r) => ({
           referencia: _P.quitarTitulo(r.cells[L.columnaReferencia].innerText, L.tituloReferencia),
-          id: r.dataset.rk,
+          id: _P.idCurso(r.dataset.rk),
         })));
       if (totalFilas !== info.total) {
         throw new Error(`La lista de la convocatoria ${convocatoria} trae ${totalFilas} cursos y E-SOIB dice ${info.total}: se para para no dejar cursos sin revisar.`);
